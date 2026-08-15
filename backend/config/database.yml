@@ -1,0 +1,22 @@
+default: &default
+  adapter: postgresql
+  encoding: unicode
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  username: postgres
+  password: password
+  host: localhost
+  port: 5432
+
+development:
+  <<: *default
+  database: ops_pulse_development
+
+test:
+  <<: *default
+  database: ops_pulse_test
+
+production:
+  <<: *default
+  database: ops_pulse_production
+  username: <%= ENV["OPS_PULSE_DATABASE_USERNAME"] %>
+  password: <%= ENV["OPS_PULSE_DATABASE_PASSWORD"] %>
