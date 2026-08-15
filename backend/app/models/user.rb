@@ -9,6 +9,10 @@ class User < ApplicationRecord
   belongs_to :organization
   acts_as_tenant :organization
 
+  has_many :created_tickets, class_name: "Ticket", foreign_key: :created_by_id, dependent: :nullify
+  has_many :assigned_tickets, class_name: "Ticket", foreign_key: :assigned_to_id, dependent: :nullify
+  has_many :comments, dependent: :destroy
+
   enum :role, { agent: 0, admin: 1, customer: 2 }
 
   validates :first_name, :last_name, presence: true

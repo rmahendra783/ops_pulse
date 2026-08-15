@@ -1,10 +1,12 @@
 Rails.application.routes.draw do
-  devise_for :users
-  # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
+  # Health check for load balancers
+  get "up" => "rails/health#show", as: :rails_health_check
+
   namespace :api do
     namespace :v1 do
       get "health", to: "health#show"
 
+      # Devise-JWT Authentication Routes
       devise_for :users, path: "auth", path_names: {
         sign_in: "login",
         sign_out: "logout",
@@ -15,13 +17,16 @@ Rails.application.routes.draw do
         registrations: "api/v1/auth/registrations"
       }
 
+      # Current User Profile
       get "me", to: "users#me"
+
+      # Ticket Management & Nested Comments
+      resources :tickets do
+        member do
+          post :assign
+        end
+        resources :comments, only: [:create]
+      end
     end
   end
-  # Reveal health status on /up that returns 200 if the app boots with no exceptions, otherwise 500.
-  # Can be used by load balancers and uptime monitors to verify that the app is live.
-  get "up" => "rails/health#show", as: :rails_health_check
-
-  # Defines the root path route ("/")
-  # root "posts#index"
 end
