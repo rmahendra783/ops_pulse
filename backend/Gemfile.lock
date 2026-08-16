@@ -137,6 +137,12 @@ GEM
       railties (>= 6.1.0)
     faker (3.8.0)
       i18n (>= 1.8.11, < 2)
+    faraday (2.14.3)
+      faraday-net_http (>= 2.0, < 3.5)
+      json
+      logger
+    faraday-net_http (3.4.4)
+      net-http (~> 0.5)
     ffi (1.17.4-aarch64-linux-gnu)
     ffi (1.17.4-aarch64-linux-musl)
     ffi (1.17.4-arm-linux-gnu)
@@ -195,6 +201,10 @@ GEM
       drb (~> 2.0)
       prism (~> 1.5)
     msgpack (1.8.4)
+    neighbor (1.2.0)
+      activerecord (>= 7.2)
+    net-http (0.9.1)
+      uri (>= 0.11.1)
     net-imap (0.6.6)
       date
       net-protocol
@@ -440,8 +450,10 @@ DEPENDENCIES
   dotenv-rails
   factory_bot_rails
   faker
+  faraday
   image_processing (~> 1.2)
   kamal
+  neighbor
   pg (~> 1.1)
   puma (>= 5.0)
   rack-cors

@@ -51,6 +51,11 @@ gem "acts_as_tenant"
 gem "sidekiq"
 gem "redis", "~> 5.0"
 
+
+# Vector Search & Local Ollama HTTP Client
+gem "neighbor"
+gem "faraday"
+
 # Use Rack CORS for handling Cross-Origin Resource Sharing (CORS), making cross-origin Ajax possible
 # gem "rack-cors"
 

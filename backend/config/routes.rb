@@ -24,6 +24,7 @@ Rails.application.routes.draw do
       resources :tickets do
         member do
           post :assign
+          get :similar
         end
         resources :comments, only: [:create]
       end

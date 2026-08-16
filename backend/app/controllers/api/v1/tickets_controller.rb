@@ -1,7 +1,7 @@
 module Api
   module V1
     class TicketsController < BaseController
-      before_action :set_ticket, only: %i[show update destroy assign]
+      before_action :set_ticket, only: %i[show update destroy assign similar]
 
       # GET /api/v1/tickets
       def index
@@ -22,6 +22,14 @@ module Api
       def show
         render json: {
           ticket: TicketSerializer.new(@ticket).to_h
+        }, status: :ok
+      end
+
+      # GET /api/v1/tickets/:id/similar
+      def similar
+        similar_tickets = @ticket.similar_tickets(5)
+        render json: {
+          similar_tickets: TicketSerializer.new(similar_tickets).to_h
         }, status: :ok
       end
 

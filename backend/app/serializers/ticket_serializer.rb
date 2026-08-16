@@ -3,7 +3,7 @@ class TicketSerializer
 
   root_key :ticket
 
-  attributes :id, :title, :description, :status, :priority, :category, :sla_status, :sla_due_at, :breached_at, :created_at, :updated_at
+  attributes :id, :title, :description, :status, :priority, :category, :sla_status, :sla_due_at, :breached_at, :ai_summary, :created_at, :updated_at
 
   one :created_by, resource: UserSerializer
   one :assigned_to, resource: UserSerializer

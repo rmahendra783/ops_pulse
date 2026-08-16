@@ -1,5 +1,6 @@
 class Ticket < ApplicationRecord
   acts_as_tenant :organization
+  has_neighbors :embedding
 
   belongs_to :created_by, class_name: "User"
   belongs_to :assigned_to, class_name: "User", optional: true
@@ -15,8 +16,18 @@ class Ticket < ApplicationRecord
   validates :status, :priority, :category, :sla_status, presence: true
 
   before_create :calculate_sla_deadline
+  after_create_commit :enqueue_ai_classification
 
   scope :pending_resolution, -> { where(status: %i[open in_progress]) }
+
+  # Semantic similarity search using pgvector cosine distance
+  def similar_tickets(limit = 5)
+    return Ticket.none if embedding.blank?
+
+    nearest_neighbors(:embedding, distance: "cosine")
+      .where.not(id: id)
+      .limit(limit)
+  end
 
   def evaluate_sla!
     return if resolved? || closed? || breached? || sla_due_at.blank?
@@ -43,5 +54,9 @@ class Ticket < ApplicationRecord
                 else 48.hours
                 end
     self.sla_due_at ||= Time.current + sla_hours
+  end
+
+  def enqueue_ai_classification
+    AiClassifyTicketJob.perform_later(id)
   end
 end
