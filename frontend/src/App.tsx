@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { ticketService } from "./services/ticketService";
 import { Ticket, TicketStatus, TicketPriority, TicketCategory } from "./types/ticket";
+import { getCableConsumer } from "./lib/cable";
 import {
   ShieldCheck,
   LogOut,
@@ -17,7 +18,9 @@ import {
   X,
   Sparkles,
   GitFork,
-  AlertTriangle
+  AlertTriangle,
+  Flame,
+  Radio
 } from "lucide-react";
 
 // ==========================================
@@ -31,6 +34,13 @@ function TicketOperationsWorkspace() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [priorityFilter, setPriorityFilter] = useState<string>("");
+  const [isLiveConnected, setIsLiveConnected] = useState<boolean>(false);
+
+  // Keep ref for live updates inside subscription callback
+  const selectedTicketIdRef = useRef<number | null>(null);
+  useEffect(() => {
+    selectedTicketIdRef.current = selectedTicket?.id || null;
+  }, [selectedTicket]);
 
   // Create Form State
   const [newTitle, setNewTitle] = useState("");
@@ -58,6 +68,73 @@ function TicketOperationsWorkspace() {
     fetchTickets();
   }, [statusFilter, priorityFilter]);
 
+  // Real-time ActionCable WebSocket Subscription
+  useEffect(() => {
+    if (!user) return;
+
+    const orgId = user.organization_id || user.organization?.id || 5;
+    const consumer = getCableConsumer();
+    
+    const subscription = consumer.subscriptions.create(
+      { channel: "TicketChannel", organization_id: orgId },
+      {
+        connected() {
+          console.log(`[ActionCable] ✅ Successfully connected to TicketChannel (Org: ${orgId})`);
+          setIsLiveConnected(true);
+        },
+        disconnected() {
+          console.warn("[ActionCable] ⚠️ Disconnected from TicketChannel");
+          setIsLiveConnected(false);
+        },
+        received(data: any) {
+          console.log("[ActionCable] ⚡ Event received:", data);
+          if (!data || !data.event) return;
+
+          const incomingTicket = data.ticket;
+
+          if (data.event === "ticket_created" && incomingTicket) {
+            setTickets((prev) => {
+              const filtered = prev.filter((t) => t.id !== incomingTicket.id);
+              return [incomingTicket, ...filtered];
+            });
+          } else if (
+            (data.event === "ticket_updated" || data.event === "ticket_ai_classified") &&
+            incomingTicket
+          ) {
+            setTickets((prev) =>
+              prev.map((t) => (t.id === incomingTicket.id ? incomingTicket : t))
+            );
+            if (selectedTicketIdRef.current === incomingTicket.id) {
+              setSelectedTicket(incomingTicket);
+            }
+          } else if (data.event === "ticket_deleted") {
+            setTickets((prev) => prev.filter((t) => t.id !== data.ticket_id));
+            if (selectedTicketIdRef.current === data.ticket_id) {
+              setSelectedTicket(null);
+            }
+          } else if (data.event === "comment_added") {
+            if (selectedTicketIdRef.current === data.ticket_id && data.comment) {
+              setSelectedTicket((curr) => {
+                if (!curr) return null;
+                const existingComments = curr.comments || [];
+                if (existingComments.some((c) => c.id === data.comment.id)) return curr;
+                return {
+                  ...curr,
+                  comments: [...existingComments, data.comment],
+                };
+              });
+            }
+          }
+        },
+      }
+    );
+
+    return () => {
+      subscription.unsubscribe();
+      consumer.disconnect();
+    };
+  }, [user]);
+
   const loadTicketDetails = async (id: number) => {
     try {
       const ticket = await ticketService.getTicket(id);
@@ -82,7 +159,6 @@ function TicketOperationsWorkspace() {
       setIsCreateModalOpen(false);
       setNewTitle("");
       setNewDesc("");
-      await fetchTickets();
     } catch (err) {
       console.error("Error creating ticket", err);
     }
@@ -91,10 +167,6 @@ function TicketOperationsWorkspace() {
   const handleStatusChange = async (id: number, status: TicketStatus) => {
     try {
       await ticketService.updateTicketStatus(id, status);
-      await fetchTickets();
-      if (selectedTicket?.id === id) {
-        await loadTicketDetails(id);
-      }
     } catch (err) {
       console.error("Failed to update status", err);
     }
@@ -108,11 +180,21 @@ function TicketOperationsWorkspace() {
       await ticketService.addComment(selectedTicket.id, commentText, isInternalComment);
       setCommentText("");
       setIsInternalComment(false);
-      await loadTicketDetails(selectedTicket.id);
     } catch (err) {
       console.error("Failed to add comment", err);
     }
   };
+
+  // Top Metrics Calculation
+  const metrics = useMemo(() => {
+    const openCount = tickets.filter((t) => t.status === "open").length;
+    const inProgressCount = tickets.filter((t) => t.status === "in_progress").length;
+    const breachedCount = tickets.filter((t) => t.sla_status === "breached").length;
+    const urgentCount = tickets.filter(
+      (t) => t.priority === "urgent" && t.status !== "resolved" && t.status !== "closed"
+    ).length;
+    return { openCount, inProgressCount, breachedCount, urgentCount };
+  }, [tickets]);
 
   const getPriorityBadge = (priority: TicketPriority) => {
     const map = {
@@ -162,6 +244,16 @@ function TicketOperationsWorkspace() {
         </div>
 
         <div className="flex items-center gap-4">
+          <div
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-mono transition ${
+              isLiveConnected
+                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                : "bg-amber-500/10 border-amber-500/30 text-amber-400"
+            }`}
+          >
+            <Radio className={`w-3 h-3 ${isLiveConnected ? "animate-pulse text-emerald-400" : "text-amber-400"}`} />
+            <span>{isLiveConnected ? "LIVE SYNC ACTIVE" : "CONNECTING..."}</span>
+          </div>
           <div className="text-right hidden sm:block">
             <p className="text-sm font-medium text-slate-200">{user?.full_name}</p>
             <p className="text-xs text-slate-500 font-mono">{user?.role?.toUpperCase()}</p>
@@ -176,9 +268,43 @@ function TicketOperationsWorkspace() {
         </div>
       </header>
 
+      {/* Operations Live Metrics Bar */}
+      <div className="w-full px-4 sm:px-8 pt-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-slate-900/90 border border-slate-800 p-4 rounded-xl flex items-center justify-between">
+            <div>
+              <p className="text-xs text-slate-400">Open Tickets</p>
+              <p className="text-xl font-bold text-emerald-400 mt-1">{metrics.openCount}</p>
+            </div>
+            <Inbox className="w-6 h-6 text-emerald-500/40" />
+          </div>
+          <div className="bg-slate-900/90 border border-slate-800 p-4 rounded-xl flex items-center justify-between">
+            <div>
+              <p className="text-xs text-slate-400">In Progress</p>
+              <p className="text-xl font-bold text-indigo-400 mt-1">{metrics.inProgressCount}</p>
+            </div>
+            <Clock className="w-6 h-6 text-indigo-500/40" />
+          </div>
+          <div className="bg-slate-900/90 border border-slate-800 p-4 rounded-xl flex items-center justify-between">
+            <div>
+              <p className="text-xs text-slate-400">Urgent Incidents</p>
+              <p className="text-xl font-bold text-amber-400 mt-1">{metrics.urgentCount}</p>
+            </div>
+            <Flame className="w-6 h-6 text-amber-500/40" />
+          </div>
+          <div className="bg-slate-900/90 border border-slate-800 p-4 rounded-xl flex items-center justify-between">
+            <div>
+              <p className="text-xs text-slate-400">SLA Breaches</p>
+              <p className="text-xl font-bold text-rose-400 mt-1">{metrics.breachedCount}</p>
+            </div>
+            <AlertTriangle className="w-6 h-6 text-rose-500/40" />
+          </div>
+        </div>
+      </div>
+
       {/* Full-Width Workspace */}
       <main className="flex-1 w-full p-4 sm:p-8 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Col: Feeds (7 cols on desktop, 12 on mobile) */}
+        {/* Left Col: Feeds */}
         <div className="lg:col-span-7 xl:col-span-8 space-y-5">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
@@ -254,7 +380,7 @@ function TicketOperationsWorkspace() {
                   </div>
                   <p className="text-xs text-slate-400 line-clamp-2 mb-3">{t.description}</p>
                   
-                  {/* AI Summary Banner if present */}
+                  {/* AI Summary Banner */}
                   {t.ai_summary && (
                     <div className="mb-3 p-2 bg-emerald-950/20 border border-emerald-800/30 rounded-lg flex items-start gap-2 text-xs text-emerald-300">
                       <Sparkles className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
@@ -284,7 +410,7 @@ function TicketOperationsWorkspace() {
           </div>
         </div>
 
-        {/* Right Col: Details & Discussion Drawer (5 cols on desktop, 12 on mobile) */}
+        {/* Right Col: Details & Discussion Drawer */}
         <div className="lg:col-span-5 xl:col-span-4">
           {selectedTicket ? (
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 sm:p-6 space-y-6 sticky top-20">

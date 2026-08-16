@@ -9,39 +9,43 @@ export interface CreateTicketPayload {
 }
 
 export const ticketService = {
-  getTickets: async (filters?: { status?: string; priority?: string }) => {
-    const res = await apiClient.get<{ tickets: Ticket[] }>("/tickets", { params: filters });
-    return res.data.tickets;
+  getTickets: async (filters?: { status?: string; priority?: string }): Promise<Ticket[]> => {
+    const res = await apiClient.get<any>("/tickets", { params: filters });
+    if (res.data && Array.isArray(res.data.tickets)) return res.data.tickets;
+    if (Array.isArray(res.data)) return res.data;
+    return [];
   },
 
-  getTicket: async (id: number) => {
-    const res = await apiClient.get<{ ticket: Ticket }>(`/tickets/${id}`);
-    return res.data.ticket;
+  getTicket: async (id: number): Promise<Ticket> => {
+    const res = await apiClient.get<any>(`/tickets/${id}`);
+    return res.data?.ticket || res.data;
   },
 
-  getSimilarTickets: async (id: number) => {
-    const res = await apiClient.get<{ similar_tickets: Ticket[] }>(`/tickets/${id}/similar`);
-    return res.data.similar_tickets;
+  getSimilarTickets: async (id: number): Promise<Ticket[]> => {
+    const res = await apiClient.get<any>(`/tickets/${id}/similar`);
+    if (res.data && Array.isArray(res.data.similar_tickets)) return res.data.similar_tickets;
+    if (Array.isArray(res.data)) return res.data;
+    return [];
   },
 
-  createTicket: async (payload: CreateTicketPayload) => {
-    const res = await apiClient.post<{ message: string; ticket: Ticket }>("/tickets", {
+  createTicket: async (payload: CreateTicketPayload): Promise<Ticket> => {
+    const res = await apiClient.post<any>("/tickets", {
       ticket: payload,
     });
-    return res.data.ticket;
+    return res.data?.ticket || res.data;
   },
 
-  updateTicketStatus: async (id: number, status: TicketStatus) => {
-    const res = await apiClient.patch<{ message: string; ticket: Ticket }>(`/tickets/${id}`, {
+  updateTicketStatus: async (id: number, status: TicketStatus): Promise<Ticket> => {
+    const res = await apiClient.patch<any>(`/tickets/${id}`, {
       ticket: { status },
     });
-    return res.data.ticket;
+    return res.data?.ticket || res.data;
   },
 
   addComment: async (ticketId: number, body: string, internal: boolean = false) => {
-    const res = await apiClient.post(`/tickets/${ticketId}/comments`, {
+    const res = await apiClient.post<any>(`/tickets/${ticketId}/comments`, {
       comment: { body, internal },
     });
-    return res.data.comment;
+    return res.data?.comment || res.data;
   },
 };
