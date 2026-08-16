@@ -3,6 +3,7 @@ import { User } from "../context/AuthContext";
 export type TicketStatus = "open" | "in_progress" | "resolved" | "closed";
 export type TicketPriority = "low" | "medium" | "high" | "urgent";
 export type TicketCategory = "general" | "technical" | "billing" | "feature_request";
+export type SlaStatus = "on_track" | "warning" | "breached";
 
 export interface Comment {
   id: number;
@@ -27,7 +28,10 @@ export interface Ticket {
   status: TicketStatus;
   priority: TicketPriority;
   category: TicketCategory;
+  sla_status?: SlaStatus;
   sla_due_at: string;
+  breached_at?: string | null;
+  ai_summary?: string | null;
   created_at: string;
   updated_at: string;
   created_by?: User;

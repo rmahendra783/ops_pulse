@@ -19,6 +19,11 @@ export const ticketService = {
     return res.data.ticket;
   },
 
+  getSimilarTickets: async (id: number) => {
+    const res = await apiClient.get<{ similar_tickets: Ticket[] }>(`/tickets/${id}/similar`);
+    return res.data.similar_tickets;
+  },
+
   createTicket: async (payload: CreateTicketPayload) => {
     const res = await apiClient.post<{ message: string; ticket: Ticket }>("/tickets", {
       ticket: payload,
