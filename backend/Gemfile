@@ -46,6 +46,11 @@ gem "devise-jwt"
 # Multi-tenancy isolation
 gem "acts_as_tenant"
 
+
+# Background Processing
+gem "sidekiq"
+gem "redis", "~> 5.0"
+
 # Use Rack CORS for handling Cross-Origin Resource Sharing (CORS), making cross-origin Ajax possible
 # gem "rack-cors"
 

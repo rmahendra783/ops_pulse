@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_15_185022) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_16_072208) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -46,6 +46,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_15_185022) do
 
   create_table "tickets", force: :cascade do |t|
     t.bigint "assigned_to_id"
+    t.datetime "breached_at"
     t.integer "category", default: 0, null: false
     t.datetime "created_at", null: false
     t.bigint "created_by_id", null: false
@@ -53,12 +54,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_15_185022) do
     t.bigint "organization_id", null: false
     t.integer "priority", default: 1, null: false
     t.datetime "sla_due_at"
+    t.integer "sla_status", default: 0, null: false
     t.integer "status", default: 0, null: false
     t.string "title", null: false
     t.datetime "updated_at", null: false
     t.index ["assigned_to_id"], name: "index_tickets_on_assigned_to_id"
     t.index ["created_by_id"], name: "index_tickets_on_created_by_id"
     t.index ["organization_id", "priority"], name: "index_tickets_on_organization_id_and_priority"
+    t.index ["organization_id", "sla_status"], name: "index_tickets_on_organization_id_and_sla_status"
     t.index ["organization_id", "status"], name: "index_tickets_on_organization_id_and_status"
     t.index ["organization_id"], name: "index_tickets_on_organization_id"
   end
